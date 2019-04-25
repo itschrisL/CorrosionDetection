@@ -7,14 +7,15 @@ class CorrosionDetectionModel():
     def __init__(self):
         #super(CorrosionDetectionModel, self).__init__()
         self.model = self.init_model()
-        self.imageShape = (256, 256, 3)
-        self.epochs = 1000
+        self.input_shape = (256, 256, 3)
+        self.epochs = 4
+        self.batch_size = 1
 
 
     def init_model(self):
         # TODO: Change this to our cnn
         model = tf.keras.models.Sequential([
-            tf.keras.layers.Flatten(input_shape=(28, 28)),
+            tf.keras.layers.Flatten(input_shape=self.input_shape),
             tf.keras.layers.Dense(128, activation='relu'),
             tf.keras.layers.Dropout(0.2),
             tf.keras.layers.Dense(10, activation='softmax')
@@ -47,4 +48,4 @@ class CorrosionDetectionModel():
     def bce_dice_loss(self, y_true, y_pred):
         loss = losses.binary_crossentropy(y_true, y_pred) + self.dice_loss(y_true, y_pred)
         return loss
-    '''
+        '''
