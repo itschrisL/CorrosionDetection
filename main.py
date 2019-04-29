@@ -1,11 +1,13 @@
 from pathlib import Path
-
+import tensorflow as tf
 from PIL import Image
+from scipy._lib.six import xrange
 from skimage import io
-#from Corrosion_Detection_Model import CorrosionDetectionModel
+from Corrosion_Detection_Model import CorrosionDetectionModel
 from os import listdir
 from os.path import isfile, join
-
+import PIL
+from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -31,12 +33,11 @@ def load_data_from_folder(img_dir, label_img_dir):
 
 
 # Helper method that gets the rgb values of an image and returns a 2D array of tuples of rgb values
-# This can either take one image or a tuple of two images
 def get_rgb_of_img(img):
-    if isinstance(img, tuple):
-        return (list(img[0].getdata()), list(img[1].getdata()))
-    else:
-        return list(img.getdata())
+    pixels = list(img.getdata())
+    width, height = img.size
+    pixels = [pixels[i * width:(i + 1) * width] for i in xrange(height)]
+    return pixels
 
 
 def load_data_to_file(images):
@@ -59,9 +60,27 @@ def read_data_from_file():
         rtn_list.append((eval(x[0]), eval(x[1])))
 
 
-# Helper method for pre processing the data
-def data_pre_processing():
-    pass
+def show_image(img):
+    plt.imshow(img)
+    plt.show()
+
+
+# Helper method that resize an image
+def reformat_image(img, new_width=256, new_height=256):
+    new_img = img.resize((new_width, new_height))
+    return new_img
+
+
+def find_biggest_resolution(img_list):
+    width_max = 0
+    height_max = 0
+    for im in img_list:
+        w, h = im.size
+        if w > width_max:
+            width_max = w
+        if h > height_max:
+            height_max = h
+    return width_max, height_max
 
 
 if __name__ == "__main__":
@@ -71,11 +90,33 @@ if __name__ == "__main__":
     cherryPickedFolderPath = Path("./Images/cherrypicked")
     DATA_FOLDER_PATH = Path()  # Our image file
 
-    data_tuple = load_data_from_folder(Path("./Images/cherrypicked"), Path("./Images/cherrypicked_gt"))
+    image_list = load_data_from_folder(Path("./Images/cherrypicked"), Path("./Images/cherrypicked_gt"))
     print("Done loading images.")
 
+    temp_list = []
+    for i in image_list:
+        temp_list.append(i[0])
+
+    width, height = find_biggest_resolution(temp_list)
+    print("Width: " + str(width) + " | Height: " + str(height))
+
     rgb_values = []
-    for d in data_tuple:
-        rgb_values.append((get_rgb_of_img(d[0]), get_rgb_of_img(d[1])))
-    print("Done getting rgb")
+    for d in image_list:
+        rgb_values.append((
+            get_rgb_of_img(reformat_image(d[0])),
+            get_rgb_of_img(reformat_image(d[1]))
+        ))
+
+    testing_set = []
+    label_set = []
+    for i in rgb_values:
+        testing_set.append(i[0])
+        label_set.append(i[1])
+
+    corrosion_model = CorrosionDetectionModel()
+    corrosion_model.train_model(np.array(testing_set), np.array(label_set))
+
+
+
+
 
