@@ -1,16 +1,11 @@
 from pathlib import Path
-import tensorflow as tf
-from PIL import Image
 from scipy._lib.six import xrange
-from skimage import io
 from Corrosion_Detection_Model import CorrosionDetectionModel
 from os import listdir
 from os.path import isfile, join
-import PIL
 from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
 
 # Helper method that will get all the files in a directory and return it as a list
@@ -25,7 +20,10 @@ def load_data_from_folder(img_dir, label_img_dir):
 
     rtrn_data = []
     for i in range(0, len(img_files)):
-        rtrn_data.append((Image.open(img_dir/img_files[i]), Image.open(label_img_dir/label_img_files[i])))
+        rtrn_data.append((
+            Image.open(img_dir/img_files[i]),
+            Image.open(label_img_dir/label_img_files[i])
+        ))
 
     # Shuffle the data here to make it easier in the future
     np.random.shuffle(rtrn_data)
@@ -38,6 +36,12 @@ def get_rgb_of_img(img):
     width, height = img.size
     pixels = [pixels[i * width:(i + 1) * width] for i in xrange(height)]
     return pixels
+
+def img_to_black_white(img):
+    thresh = 200
+    fn = lambda x: 255 if x > thresh else 0
+    new_img = img.convert('L').point(fn, mode='1')
+    return new_img
 
 
 def load_data_to_file(images):
@@ -62,6 +66,27 @@ def read_data_from_file():
 
 def show_image(img):
     plt.imshow(img)
+    plt.show()
+
+
+def show_both_images(img1, img2, img1_title="", img2_title="", subplot_title=""):
+    fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
+    ax1.imshow(img1)
+    ax1.set_title(img1_title)
+    ax2.imshow(img2)
+    ax2.set_title(img2_title)
+    fig.suptitle(subplot_title)
+    plt.show()
+
+
+def show_three_images(img_list, title_list):
+    fig, (ax1, ax2) = plt.subplots(2, 2, sharey=True)
+    ax1[0].imshow(img_list[0])
+    ax1[0].set_title(title_list[0])
+    ax2[0].imshow(img_list[1])
+    ax2[0].set_title(title_list[1])
+    ax2[1].imshow(img_list[2])
+    ax2[1].set_title(title_list[2])
     plt.show()
 
 
@@ -90,15 +115,8 @@ if __name__ == "__main__":
     cherryPickedFolderPath = Path("./Images/cherrypicked")
     DATA_FOLDER_PATH = Path()  # Our image file
 
-    image_list = load_data_from_folder(Path("./Images/cherrypicked"), Path("./Images/cherrypicked_gt"))
+    image_list = load_data_from_folder(Path("./Images/train_imgs"), Path("./Images/label_img"))
     print("Done loading images.")
-
-    temp_list = []
-    for i in image_list:
-        temp_list.append(i[0])
-
-    width, height = find_biggest_resolution(temp_list)
-    print("Width: " + str(width) + " | Height: " + str(height))
 
     rgb_values = []
     for d in image_list:
@@ -114,7 +132,23 @@ if __name__ == "__main__":
         label_set.append(i[1])
 
     corrosion_model = CorrosionDetectionModel()
-    corrosion_model.train_model(np.array(testing_set), np.array(label_set))
+    corrosion_model.train_model(np.array(testing_set), np.array(label_set), use_cp=False)
+
+    p_img = corrosion_model.predict_img(np.array(testing_set[:4]))
+
+    show_both_images(p_img[0], label_set[0],
+                     img1_title="Predicted Img",
+                     img2_title="Original Label Img",
+                     subplot_title="Predicted Image and Labeled Image")
+
+    show_three_images([testing_set[0], p_img[0], label_set[0]],
+                      ["Original Image", "Predicted Image From Model", "Correct Labeled Image"])
+
+    show_three_images([testing_set[1], p_img[1], label_set[1]],
+                      ["Original Image", "Predicted Image From Model", "Correct Labeled Image"])
+
+    show_three_images([testing_set[2], p_img[2], label_set[2]],
+                      ["Original Image", "Predicted Image From Model", "Correct Labeled Image"])
 
 
 

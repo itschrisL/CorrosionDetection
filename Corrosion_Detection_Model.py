@@ -1,17 +1,8 @@
 import tensorflow as tf
-#import tensorflow.contrib as tfcontrib
 from tensorflow.python.keras import layers
 from tensorflow.python.keras import losses
 from tensorflow.python.keras import models
-from tensorflow.python.keras import backend as K
-
-import numpy as np
 import matplotlib.pyplot as plt
-import functools
-
-from sklearn.model_selection import train_test_split
-import matplotlib.image as mpimg
-import pandas as pd
 
 
 class CorrosionDetectionModel:
@@ -20,15 +11,15 @@ class CorrosionDetectionModel:
         # super(CorrosionDetectionModel, self).__init__()
 
         self.input_shape = (256, 256, 3)
-        self.steps_per_epoch = 5
-        self.epochs = 5
+        self.steps_per_epoch = 1
+        self.epochs = 2
         self.batch_size = 1
 
         self.saved_weights_path = "./saved_weights.hdf5"
         self.cp = tf.keras.callbacks.ModelCheckpoint(
                                             filepath=self.saved_weights_path,
                                             monitor='val_dice_loss',
-                                            save_best_only=True,
+                                            save_best_only=False,
                                             verbose=1)
         # Create model
         self.model = self.init_model()
@@ -59,43 +50,77 @@ class CorrosionDetectionModel:
         decoder2 = self.decoder_block(decoder3, encoder2, 128)  # 64
         decoder1 = self.decoder_block(decoder2, encoder1, 64)  # 128
         decoder0 = self.decoder_block(decoder1, encoder0, 32)  # 256
-        outputs = layers.Conv2D(1, (1, 1), activation='sigmoid')(decoder0)
+        outputs = layers.Conv2D(3, (1, 1), activation='sigmoid')(decoder0)
         return inputs, outputs
 
     # Train the model by giving the training an labels
-    def train_model(self, training_set, training_labels):
+    def train_model(self, training_set, training_labels, use_cp=False):
+        print("\n=============================================================\n")
+        print("Starting training...")
         print("Number of training data: " + str(len(training_set)))
 
         if len(training_set) != len(training_labels):
             print("ERROR: number of training data and labels need to be the same length")
             return
 
-        history = self.model.fit(training_set,
-                                 training_labels,
-                                 steps_per_epoch=1,
-                                 epochs=self.epochs)
+        train_data, train_labels, val_data, val_labels = self.split_data(training_set, training_labels)
+
+        if use_cp:
+            self.model.load_weights(self.saved_weights_path)
+            print("Loaded weights")
+
+        history = self.model.fit(train_data,
+                                 train_labels,
+                                 steps_per_epoch=self.steps_per_epoch,
+                                 epochs=self.epochs,
+                                 batch_size=5)
+
+        print("Done training and saving weights...")
+        self.model.save_weights(self.saved_weights_path)
+
+        print("\n=============================================================\n")
+        print("Evaluating model")
+        val = self.model.evaluate(val_data, val_labels)
+        print(val)
+
         self.show_history(history)
+
+    def predict_img(self, img):
+        self.model.load_weights(self.saved_weights_path)
+        predicted_img = self.model.predict(img)
+        return predicted_img
+
+    def split_data(self, data, labels):
+        split_idx = int(len(data)*.8)
+
+        training_data = data[:split_idx]
+        training_labels = labels[:split_idx]
+
+        val_data = data[split_idx:]
+        val_labels = labels[split_idx:]
+
+        return training_data, training_labels, val_data, val_labels
 
     # Helper method to display the results of training
     def show_history(self, history):
         dice = history.history['dice_loss']
-        val_dice = history.history['val_dice_loss']
+        #val_dice = history.history['val_dice_loss']
 
         loss = history.history['loss']
-        val_loss = history.history['val_loss']
+        #val_loss = history.history['val_loss']
 
         epochs_range = range(self.epochs)
 
         plt.figure(figsize=(16, 8))
         plt.subplot(1, 2, 1)
         plt.plot(epochs_range, dice, label='Training Dice Loss')
-        plt.plot(epochs_range, val_dice, label='Validation Dice Loss')
+        #plt.plot(epochs_range, val_dice, label='Validation Dice Loss')
         plt.legend(loc='upper right')
         plt.title('Training and Validation Dice Loss')
 
         plt.subplot(1, 2, 2)
         plt.plot(epochs_range, loss, label='Training Loss')
-        plt.plot(epochs_range, val_loss, label='Validation Loss')
+        # plt.plot(epochs_range, val_loss, label='Validation Loss')
         plt.legend(loc='upper right')
         plt.title('Training and Validation Loss')
 
