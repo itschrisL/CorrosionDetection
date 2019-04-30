@@ -1,3 +1,3 @@
 # CorrosionDetection.
 
-Authors: Jacob Apanes, Chris Lytle
+Authors: Jacob Apenes, Chris Lytle
