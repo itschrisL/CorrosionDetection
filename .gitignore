@@ -104,6 +104,6 @@ venv.bak/
 .mypy_cache/
 
 #extra ML stuff
-*.hdf5
+saved_weights.hdf5
 *.png
 *.jpg
